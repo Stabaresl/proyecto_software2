@@ -1,0 +1,40 @@
+# Entorno virtual
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+
+# Migraciones (opcional — algunos proyectos las incluyen)
+# */migrations/*.py
+# !*/migrations/__init__.py
+
+# Variables de entorno
+.env
+.env.backup
+
+# IDE
+.idea/
+.vscode/
+*.suo
+*.sw?
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+htmlcov/
+.coverage
+coverage.xml
