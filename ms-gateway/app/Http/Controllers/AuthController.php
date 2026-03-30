@@ -16,7 +16,7 @@ use Tymon\JWTAuth\Exceptions\JWTException;
 class AuthController extends Controller
 {
     // ─── LOGIN ────────────────────────────────────────────────
-    public function login(Request $request): JsonResponse
+        public function login(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
             'email'    => 'required|email',
@@ -49,7 +49,9 @@ class AuthController extends Controller
         $user = JWTAuth::user();
 
         if ($user->status !== 'active') {
-            JWTAuth::invalidate($token);
+            try {
+                JWTAuth::setToken($token)->invalidate();
+            } catch (JWTException $e) {}
             return response()->json([
                 'success' => false,
                 'message' => 'Tu cuenta no está activa.',
@@ -237,7 +239,7 @@ class AuthController extends Controller
                 'email'    => $request->email,
                 'password' => Hash::make($request->password),
                 'role'     => $request->role,
-                'status'   => 'pending',
+                'status'   => 'active',
             ]);
 
             $token = JWTAuth::fromUser($user);
