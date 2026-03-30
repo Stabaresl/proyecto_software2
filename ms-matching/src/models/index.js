@@ -1,6 +1,6 @@
 const sequelize = require('../config/database');
-const Perfil    = require('./Perfil');
-const Favorito  = require('./Favorito');
+const Perfil    = require('./perfil');
+const Favorito  = require('./favorito');
 
 const syncDatabase = async () => {
     await sequelize.sync({ alter: true });
