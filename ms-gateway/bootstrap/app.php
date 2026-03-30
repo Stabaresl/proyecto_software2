@@ -13,8 +13,12 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
-            'jwt.auth' => \App\Http\Middleware\JwtMiddleware::class,
+            'jwt.auth'   => \App\Http\Middleware\JwtMiddleware::class,
+            'rate.limit' => \App\Http\Middleware\RateLimitMiddleware::class,
+            'access.log' => \App\Http\Middleware\AccessLogMiddleware::class,
         ]);
+
+        $middleware->append(\App\Http\Middleware\AccessLogMiddleware::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
