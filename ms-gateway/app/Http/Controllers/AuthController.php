@@ -214,4 +214,52 @@ class AuthController extends Controller
             ],
         ]);
     }
+
+    // ─── REGISTER ─────────────────────────────────────────────────
+    public function register(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'email'    => 'required|email|unique:users,email',
+            'password' => 'required|string|min:8|confirmed',
+            'password_confirmation' => 'required|string',
+            'role'     => 'required|in:student,university,company,state',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors'  => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $user = User::create([
+                'email'    => $request->email,
+                'password' => Hash::make($request->password),
+                'role'     => $request->role,
+                'status'   => 'pending',
+            ]);
+
+            $token = JWTAuth::fromUser($user);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Usuario registrado correctamente.',
+                'token'   => $token,
+                'user'    => [
+                    'id'     => $user->id,
+                    'email'  => $user->email,
+                    'role'   => $user->role,
+                    'status' => $user->status,
+                ],
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al registrar el usuario.',
+                'error'   => app()->environment('local') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
 }
