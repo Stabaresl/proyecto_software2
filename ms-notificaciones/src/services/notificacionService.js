@@ -1,5 +1,5 @@
-const Notificacion = require('../models/Notificacion');
-const Preferencia  = require('../models/Preferencia');
+const Notificacion = require('../models/notificacion');
+const Preferencia  = require('../models/preferencia');
 const { enviarEmail } = require('./emailService');
 
 const crear = async ({ destinatario_user_id, tipo, titulo, mensaje, metadata = {}, email = null }) => {
