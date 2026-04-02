@@ -81,17 +81,23 @@ class PostulacionTest extends TestCase
 
     public function test_mis_postulaciones(): void
     {
-        $convocatoria = $this->convocatoriaActiva();
-        Postulacion::factory()->count(2)->create([
-            'convocatoria_id'    => $convocatoria->id,
+        $convocatoria1 = $this->convocatoriaActiva();
+        $convocatoria2 = $this->convocatoriaActiva();
+
+        Postulacion::factory()->create([
+            'convocatoria_id'    => $convocatoria1->id,
+            'estudiante_user_id' => 1,
+        ]);
+        Postulacion::factory()->create([
+            'convocatoria_id'    => $convocatoria2->id,
             'estudiante_user_id' => 1,
         ]);
 
         $response = $this->withHeaders($this->authHeaders())
-                         ->getJson('/api/mis-postulaciones');
+                        ->getJson('/api/mis-postulaciones');
 
         $response->assertStatus(200)
-                 ->assertJson(['success' => true]);
+                ->assertJson(['success' => true]);
     }
 
     public function test_cambiar_estado_postulacion(): void
