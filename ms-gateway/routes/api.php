@@ -59,6 +59,13 @@ Route::middleware(['jwt.auth', 'rate.limit'])->group(function () {
         return app(GatewayController::class)->forward($request, 'notificaciones', 'preferencias');
     });
 });
+// ─── Rutas públicas SIN auth ──────────────────────────────────
+Route::get('/convocatorias', function (Request $request) {
+    return app(GatewayController::class)->forward($request, 'convocatorias', '');
+});
+Route::get('/formaciones', function (Request $request) {
+    return app(GatewayController::class)->forward($request, 'formaciones', '');
+});
 /*
 |--------------------------------------------------------------------------
 | PROXY DINÁMICO (SOLO UNO)
