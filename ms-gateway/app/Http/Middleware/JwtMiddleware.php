@@ -12,7 +12,7 @@ use Tymon\JWTAuth\Exceptions\TokenInvalidException;
 
 class JwtMiddleware
 {
-    public function handle(Request $request, Closure $next)
+        public function handle(Request $request, Closure $next)
     {
         try {
             $token = JWTAuth::getToken();
@@ -31,7 +31,9 @@ class JwtMiddleware
                 ], 401);
             }
 
-            JWTAuth::authenticate($token);
+            $user = JWTAuth::authenticate($token);
+
+            $request->attributes->set('user', $user);
 
         } catch (TokenExpiredException $e) {
             return response()->json([

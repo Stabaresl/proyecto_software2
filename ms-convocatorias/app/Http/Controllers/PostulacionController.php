@@ -11,32 +11,70 @@ use Illuminate\Support\Facades\Validator;
 
 class PostulacionController extends Controller
 {
+    private function getAuth(Request $request)
+    {
+        return [
+            'userId' => $request->header('X-User-Id'),
+            'role'   => $request->header('X-User-Role'),
+        ];
+    }
+
+    private function checkAuth($userId)
+    {
+        if (!$userId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No autenticado.'
+            ], 401);
+        }
+        return null;
+    }
+
     public function store(Request $request, int $convocatoriaId): JsonResponse
     {
-        if ($request->auth_user_role !== 'student') {
-            return response()->json(['success' => false, 'message' => 'Solo estudiantes pueden postularse.'], 403);
+        $auth = $this->getAuth($request);
+
+        if ($res = $this->checkAuth($auth['userId'])) return $res;
+
+        if ($auth['role'] !== 'student') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Solo estudiantes pueden postularse.'
+            ], 403);
         }
 
         $convocatoria = Convocatoria::find($convocatoriaId);
 
         if (!$convocatoria) {
-            return response()->json(['success' => false, 'message' => 'Convocatoria no encontrada.'], 404);
+            return response()->json([
+                'success' => false,
+                'message' => 'Convocatoria no encontrada.'
+            ], 404);
         }
 
         if (!$convocatoria->isActiva()) {
-            return response()->json(['success' => false, 'message' => 'La convocatoria no está activa.'], 400);
+            return response()->json([
+                'success' => false,
+                'message' => 'La convocatoria no está activa.'
+            ], 400);
         }
 
         if ($convocatoria->cuposDisponibles() === 0) {
-            return response()->json(['success' => false, 'message' => 'No hay cupos disponibles.'], 400);
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay cupos disponibles.'
+            ], 400);
         }
 
         $yaPostulado = Postulacion::where('convocatoria_id', $convocatoriaId)
-            ->where('estudiante_user_id', $request->auth_user_id)
+            ->where('estudiante_user_id', $auth['userId'])
             ->exists();
 
         if ($yaPostulado) {
-            return response()->json(['success' => false, 'message' => 'Ya te postulaste a esta convocatoria.'], 409);
+            return response()->json([
+                'success' => false,
+                'message' => 'Ya te postulaste a esta convocatoria.'
+            ], 409);
         }
 
         $validator = Validator::make($request->all(), [
@@ -48,12 +86,15 @@ class PostulacionController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
         }
 
         $postulacion = Postulacion::create([
             'convocatoria_id'    => $convocatoriaId,
-            'estudiante_user_id' => $request->auth_user_id,
+            'estudiante_user_id' => $auth['userId'],
             'carta_presentacion' => $request->carta_presentacion,
             'estado'             => 'en_revision',
         ]);
@@ -78,44 +119,74 @@ class PostulacionController extends Controller
 
     public function misPostulaciones(Request $request): JsonResponse
     {
-        $postulaciones = Postulacion::where('estudiante_user_id', $request->auth_user_id)
+        $auth = $this->getAuth($request);
+
+        if ($res = $this->checkAuth($auth['userId'])) return $res;
+
+        $postulaciones = Postulacion::where('estudiante_user_id', $auth['userId'])
             ->with(['convocatoria', 'documentos'])
-            ->orderByDesc('fecha_postulacion')
+            ->orderByDesc('created_at')
             ->get();
 
-        return response()->json(['success' => true, 'data' => $postulaciones]);
+        return response()->json([
+            'success' => true,
+            'data' => $postulaciones
+        ]);
     }
 
     public function postulacionesPorConvocatoria(Request $request, int $convocatoriaId): JsonResponse
     {
+        $auth = $this->getAuth($request);
+
+        if ($res = $this->checkAuth($auth['userId'])) return $res;
+
         $convocatoria = Convocatoria::find($convocatoriaId);
 
         if (!$convocatoria) {
-            return response()->json(['success' => false, 'message' => 'Convocatoria no encontrada.'], 404);
+            return response()->json([
+                'success' => false,
+                'message' => 'Convocatoria no encontrada.'
+            ], 404);
         }
 
-        if ($convocatoria->publicador_user_id != $request->auth_user_id) {
-            return response()->json(['success' => false, 'message' => 'No tienes permiso.'], 403);
+        if ($convocatoria->publicador_user_id != $auth['userId']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permiso.'
+            ], 403);
         }
 
         $postulaciones = Postulacion::where('convocatoria_id', $convocatoriaId)
             ->with('documentos')
-            ->orderByDesc('fecha_postulacion')
+            ->orderByDesc('created_at')
             ->get();
 
-        return response()->json(['success' => true, 'data' => $postulaciones]);
+        return response()->json([
+            'success' => true,
+            'data' => $postulaciones
+        ]);
     }
 
     public function cambiarEstado(Request $request, int $postulacionId): JsonResponse
     {
+        $auth = $this->getAuth($request);
+
+        if ($res = $this->checkAuth($auth['userId'])) return $res;
+
         $postulacion = Postulacion::with('convocatoria')->find($postulacionId);
 
         if (!$postulacion) {
-            return response()->json(['success' => false, 'message' => 'Postulación no encontrada.'], 404);
+            return response()->json([
+                'success' => false,
+                'message' => 'Postulación no encontrada.'
+            ], 404);
         }
 
-        if ($postulacion->convocatoria->publicador_user_id != $request->auth_user_id) {
-            return response()->json(['success' => false, 'message' => 'No tienes permiso.'], 403);
+        if ($postulacion->convocatoria->publicador_user_id != $auth['userId']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permiso.'
+            ], 403);
         }
 
         $validator = Validator::make($request->all(), [
@@ -123,11 +194,18 @@ class PostulacionController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
         }
 
         $postulacion->update(['estado' => $request->estado]);
 
-        return response()->json(['success' => true, 'message' => "Estado actualizado a {$request->estado}.", 'data' => $postulacion]);
+        return response()->json([
+            'success' => true,
+            'message' => "Estado actualizado a {$request->estado}.",
+            'data' => $postulacion
+        ]);
     }
 }
