@@ -1,6 +1,12 @@
 const jwt = require('jsonwebtoken');
 
 const authMiddleware = (req, res, next) => {
+    
+    if (req.headers['x-user-id'] && req.headers['x-user-role']) {
+        req.authUserId   = req.headers['x-user-id'];
+        req.authUserRole = req.headers['x-user-role'];
+        return next();
+    }
     const authHeader = req.headers['authorization'];
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
