@@ -9,21 +9,36 @@ use Illuminate\Support\Facades\Validator;
 
 class ConvocatoriaController extends Controller
 {
+    private function getAuth(Request $request): array
+    {
+        return [
+            'userId' => $request->header('X-User-Id'),
+            'role'   => $request->header('X-User-Role'),
+        ];
+    }
+
+    private function checkAuth($userId): ?JsonResponse
+    {
+        if (!$userId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No autenticado.',
+            ], 401);
+        }
+        return null;
+    }
+
     public function index(Request $request): JsonResponse
     {
         $query = Convocatoria::query();
 
-        if ($request->has('tipo')) {
-            $query->where('tipo', $request->tipo);
-        }
-        if ($request->has('estado')) {
-            $query->where('estado', $request->estado);
-        }
-        if ($request->has('publicador_tipo')) {
-            $query->where('publicador_tipo', $request->publicador_tipo);
-        }
+        if ($request->has('tipo'))           $query->where('tipo', $request->tipo);
+        if ($request->has('estado'))         $query->where('estado', $request->estado);
+        if ($request->has('publicador_tipo')) $query->where('publicador_tipo', $request->publicador_tipo);
 
-        $convocatorias = $query->withCount('postulaciones')->orderByDesc('created_at')->get();
+        $convocatorias = $query->withCount('postulaciones')
+            ->orderByDesc('created_at')
+            ->get();
 
         return response()->json(['success' => true, 'data' => $convocatorias]);
     }
@@ -41,10 +56,15 @@ class ConvocatoriaController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $role = $request->auth_user_role;
+        $auth = $this->getAuth($request);
 
-        if (!in_array($role, ['company', 'state'])) {
-            return response()->json(['success' => false, 'message' => 'Solo empresas o entidades del Estado pueden publicar convocatorias.'], 403);
+        if ($res = $this->checkAuth($auth['userId'])) return $res;
+
+        if (!in_array($auth['role'], ['company', 'state'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Solo empresas o entidades del Estado pueden publicar convocatorias.',
+            ], 403);
         }
 
         $validator = Validator::make($request->all(), [
@@ -63,8 +83,8 @@ class ConvocatoriaController extends Controller
         }
 
         $convocatoria = Convocatoria::create([
-            'publicador_user_id' => $request->auth_user_id,
-            'publicador_tipo'    => $role,
+            'publicador_user_id' => $auth['userId'],
+            'publicador_tipo'    => $auth['role'],
             'titulo'             => $request->titulo,
             'descripcion'        => $request->descripcion,
             'tipo'               => $request->tipo,
@@ -76,18 +96,26 @@ class ConvocatoriaController extends Controller
             'condiciones'        => $request->condiciones ?? [],
         ]);
 
-        return response()->json(['success' => true, 'message' => 'Convocatoria creada.', 'data' => $convocatoria], 201);
+        return response()->json([
+            'success' => true,
+            'message' => 'Convocatoria creada.',
+            'data'    => $convocatoria,
+        ], 201);
     }
 
     public function update(Request $request, int $id): JsonResponse
     {
+        $auth = $this->getAuth($request);
+
+        if ($res = $this->checkAuth($auth['userId'])) return $res;
+
         $convocatoria = Convocatoria::find($id);
 
         if (!$convocatoria) {
             return response()->json(['success' => false, 'message' => 'Convocatoria no encontrada.'], 404);
         }
 
-        if ($convocatoria->publicador_user_id != $request->auth_user_id) {
+        if ($convocatoria->publicador_user_id != $auth['userId']) {
             return response()->json(['success' => false, 'message' => 'No tienes permiso para editar esta convocatoria.'], 403);
         }
 
@@ -117,13 +145,17 @@ class ConvocatoriaController extends Controller
 
     public function cambiarEstado(Request $request, int $id): JsonResponse
     {
+        $auth = $this->getAuth($request);
+
+        if ($res = $this->checkAuth($auth['userId'])) return $res;
+
         $convocatoria = Convocatoria::find($id);
 
         if (!$convocatoria) {
             return response()->json(['success' => false, 'message' => 'Convocatoria no encontrada.'], 404);
         }
 
-        if ($convocatoria->publicador_user_id != $request->auth_user_id) {
+        if ($convocatoria->publicador_user_id != $auth['userId']) {
             return response()->json(['success' => false, 'message' => 'No tienes permiso.'], 403);
         }
 
@@ -137,16 +169,24 @@ class ConvocatoriaController extends Controller
 
         $convocatoria->update(['estado' => $request->estado]);
 
-        return response()->json(['success' => true, 'message' => "Estado cambiado a {$request->estado}.", 'data' => $convocatoria]);
+        return response()->json([
+            'success' => true,
+            'message' => "Estado cambiado a {$request->estado}.",
+            'data'    => $convocatoria,
+        ]);
     }
 
     public function misConvocatorias(Request $request): JsonResponse
     {
-        $convocatorias = Convocatoria::where('publicador_user_id', $request->auth_user_id)
+        $auth = $this->getAuth($request);
+
+        if ($res = $this->checkAuth($auth['userId'])) return $res;
+
+        $data = Convocatoria::where('publicador_user_id', $auth['userId'])
             ->withCount('postulaciones')
             ->orderByDesc('created_at')
             ->get();
 
-        return response()->json(['success' => true, 'data' => $convocatorias]);
+        return response()->json(['success' => true, 'data' => $data]);
     }
 }

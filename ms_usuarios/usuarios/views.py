@@ -45,11 +45,18 @@ def create_profile(request):
 
 # ─── STUDENTS ─────────────────────────────────────────────────
 
-@api_view(['GET'])
-def list_students(request):
-    students = Student.objects.select_related('university').all()
-    serializer = StudentSerializer(students, many=True)
-    return Response({'success': True, 'data': serializer.data})
+@api_view(['GET', 'POST'])
+def students(request):
+    if request.method == 'GET':
+        all_students = Student.objects.select_related('university').all()
+        serializer = StudentSerializer(all_students, many=True)
+        return Response({'success': True, 'data': serializer.data})
+
+    serializer = StudentCreateSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({'success': True, 'data': serializer.data}, status=status.HTTP_201_CREATED)
+    return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 @api_view(['GET'])
@@ -77,11 +84,18 @@ def update_student(request, gateway_user_id):
 
 # ─── UNIVERSITIES ─────────────────────────────────────────────
 
-@api_view(['GET'])
-def list_universities(request):
-    universities = University.objects.all()
-    serializer = UniversitySerializer(universities, many=True)
-    return Response({'success': True, 'data': serializer.data})
+@api_view(['GET', 'POST'])
+def universities(request):
+    if request.method == 'GET':
+        all_universities = University.objects.all()
+        serializer = UniversitySerializer(all_universities, many=True)
+        return Response({'success': True, 'data': serializer.data})
+
+    serializer = UniversitySerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({'success': True, 'data': serializer.data}, status=status.HTTP_201_CREATED)
+    return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 @api_view(['GET'])
@@ -92,15 +106,6 @@ def get_university(request, pk):
         return Response({'success': False, 'message': 'Universidad no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
     serializer = UniversitySerializer(university)
     return Response({'success': True, 'data': serializer.data})
-
-
-@api_view(['POST'])
-def create_university(request):
-    serializer = UniversitySerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-        return Response({'success': True, 'data': serializer.data}, status=status.HTTP_201_CREATED)
-    return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 @api_view(['PUT'])
@@ -118,11 +123,18 @@ def update_university(request, pk):
 
 # ─── COMPANIES ────────────────────────────────────────────────
 
-@api_view(['GET'])
-def list_companies(request):
-    companies = Company.objects.all()
-    serializer = CompanySerializer(companies, many=True)
-    return Response({'success': True, 'data': serializer.data})
+@api_view(['GET', 'POST'])
+def companies(request):
+    if request.method == 'GET':
+        all_companies = Company.objects.all()
+        serializer = CompanySerializer(all_companies, many=True)
+        return Response({'success': True, 'data': serializer.data})
+
+    serializer = CompanyCreateSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({'success': True, 'data': serializer.data}, status=status.HTTP_201_CREATED)
+    return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 @api_view(['GET'])
@@ -150,11 +162,18 @@ def update_company(request, gateway_user_id):
 
 # ─── GOVERNMENT ENTITIES ──────────────────────────────────────
 
-@api_view(['GET'])
-def list_government_entities(request):
-    entities = GovernmentEntity.objects.all()
-    serializer = GovernmentEntitySerializer(entities, many=True)
-    return Response({'success': True, 'data': serializer.data})
+@api_view(['GET', 'POST'])
+def government_entities(request):
+    if request.method == 'GET':
+        all_entities = GovernmentEntity.objects.all()
+        serializer = GovernmentEntitySerializer(all_entities, many=True)
+        return Response({'success': True, 'data': serializer.data})
+
+    serializer = GovernmentEntityCreateSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({'success': True, 'data': serializer.data}, status=status.HTTP_201_CREATED)
+    return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 @api_view(['GET'])

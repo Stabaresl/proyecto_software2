@@ -4,22 +4,31 @@ use App\Http\Controllers\ConvocatoriaController;
 use App\Http\Controllers\PostulacionController;
 use Illuminate\Support\Facades\Route;
 
-// ─── Rutas públicas ───────────────────────────────────────────
-Route::get('/convocatorias', [ConvocatoriaController::class, 'index']);
-Route::get('/convocatorias/{id}', [ConvocatoriaController::class, 'show']);
+/*
+|--------------------------------------------------------------------------
+| API Routes - Microservicio Convocatorias
+|--------------------------------------------------------------------------
+*/
 
-// ─── Rutas protegidas ─────────────────────────────────────────
-Route::middleware(['jwt.auth'])->group(function () {
+// 1. RUTAS ESPECÍFICAS — sin prefijo (acceso directo)
+Route::get('/mis-convocatorias', [ConvocatoriaController::class, 'misConvocatorias']);
+Route::get('/mis-postulaciones', [PostulacionController::class, 'misPostulaciones']);
 
-    // Convocatorias
-    Route::post('/convocatorias', [ConvocatoriaController::class, 'store']);
-    Route::put('/convocatorias/{id}', [ConvocatoriaController::class, 'update']);
-    Route::patch('/convocatorias/{id}/estado', [ConvocatoriaController::class, 'cambiarEstado']);
-    Route::get('/mis-convocatorias', [ConvocatoriaController::class, 'misConvocatorias']);
+// 2. RUTAS ESPECÍFICAS — con prefijo convocatorias (acceso desde gateway)
+Route::get('/convocatorias/mis-convocatorias', [ConvocatoriaController::class, 'misConvocatorias']);
+Route::get('/convocatorias/mis-postulaciones', [PostulacionController::class, 'misPostulaciones']);
 
-    // Postulaciones
-    Route::post('/convocatorias/{id}/postular', [PostulacionController::class, 'store']);
-    Route::get('/mis-postulaciones', [PostulacionController::class, 'misPostulaciones']);
-    Route::get('/convocatorias/{id}/postulaciones', [PostulacionController::class, 'postulacionesPorConvocatoria']);
-    Route::patch('/postulaciones/{id}/estado', [PostulacionController::class, 'cambiarEstado']);
-});
+// 3. RUTAS DE RECURSOS GENERALES
+Route::get('/convocatorias',  [ConvocatoriaController::class, 'index']);
+Route::post('/convocatorias', [ConvocatoriaController::class, 'store']);
+
+// 4. RUTAS CON PARÁMETROS DINÁMICOS (Van al final)
+Route::get('/convocatorias/{id}',               [ConvocatoriaController::class, 'show']);
+Route::put('/convocatorias/{id}',               [ConvocatoriaController::class, 'update']);
+Route::patch('/convocatorias/{id}/estado',      [ConvocatoriaController::class, 'cambiarEstado']);
+
+// 5. POSTULACIONES
+Route::post('/convocatorias/{id}/postular',     [PostulacionController::class, 'store']);
+Route::get('/convocatorias/{id}/postulaciones', [PostulacionController::class, 'postulacionesPorConvocatoria']);
+Route::patch('/postulaciones/{id}/estado',      [PostulacionController::class, 'cambiarEstado']);
+Route::patch('/convocatorias/postulaciones/{id}/estado', [PostulacionController::class, 'cambiarEstado']);

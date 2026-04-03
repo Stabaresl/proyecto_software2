@@ -23,9 +23,19 @@ class GatewayController extends Controller
         'notificaciones' => 'MS_NOTIFICACIONES_URL',
     ];
 
+    private array $servicePrefixes = [
+        'usuarios'       => '',
+        'convocatorias'  => 'convocatorias',
+        'formaciones'    => 'formaciones',
+        'acuerdos'       => 'acuerdos',
+        'catalogo'       => 'catalogo',
+        'matching'       => 'matching',
+        'notificaciones' => 'notificaciones',
+    ];
+
     public function __construct()
     {
-        $this->client = new Client(['timeout' => 10]);
+        $this->client = new Client(['timeout' => 15]);
     }
 
     public function forward(Request $request, string $service, string $path = ''): JsonResponse
@@ -39,12 +49,19 @@ class GatewayController extends Controller
             ], 404);
         }
 
-        $baseUrl    = env($envKey);
-        $targetUrl  = "{$baseUrl}/api/{$service}" . ($path ? "/{$path}" : '');
-        $queryString = $request->getQueryString();
+        $baseUrl   = rtrim(env($envKey), '/');
+        $prefix    = $this->servicePrefixes[$service] ?? $service;
+        $cleanPath = $path ? "/{$path}" : '';
 
-        if ($queryString) {
-            $targetUrl .= "?{$queryString}";
+        $djangoServices = ['usuarios'];
+        $slash = in_array($service, $djangoServices) ? '/' : '';
+
+        $targetUrl = $prefix
+            ? "{$baseUrl}/api/{$prefix}{$cleanPath}{$slash}"
+            : "{$baseUrl}/api{$cleanPath}{$slash}";
+
+        if ($request->getQueryString()) {
+            $targetUrl .= '?' . $request->getQueryString();
         }
 
         $headers = [
@@ -56,16 +73,23 @@ class GatewayController extends Controller
             $token = JWTAuth::getToken();
             if ($token) {
                 $headers['Authorization'] = 'Bearer ' . $token->get();
+                $payload = JWTAuth::getPayload($token);
+                $headers['X-User-Id']   = $payload->get('sub');
+                $headers['X-User-Role'] = $payload->get('role');
             }
         } catch (\Exception $e) {}
 
         try {
-            $response = $this->client->request($request->method(), $targetUrl, [
-                'headers' => $headers,
-                'json'    => $request->all() ?: null,
+            $options = [
+                'headers'     => $headers,
                 'http_errors' => false,
-            ]);
+            ];
 
+            if (in_array($request->method(), ['POST', 'PUT', 'PATCH'])) {
+                $options['json'] = $request->all();
+            }
+
+            $response   = $this->client->request($request->method(), $targetUrl, $options);
             $body       = json_decode($response->getBody()->getContents(), true);
             $statusCode = $response->getStatusCode();
 
@@ -79,7 +103,7 @@ class GatewayController extends Controller
         } catch (RequestException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al procesar la solicitud.',
+                'message' => 'Error al procesar la solicitud en el microservicio.',
             ], 500);
         }
     }
