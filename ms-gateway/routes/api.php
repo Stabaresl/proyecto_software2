@@ -63,6 +63,11 @@ Route::middleware(['jwt.auth', 'rate.limit'])->group(function () {
 Route::get('/convocatorias', function (Request $request) {
     return app(GatewayController::class)->forward($request, 'convocatorias', '');
 });
+
+Route::get('/convocatorias/{id}', function (Request $request, $id) {
+    return app(GatewayController::class)->forward($request, 'convocatorias', $id);
+});
+
 Route::get('/formaciones', function (Request $request) {
     return app(GatewayController::class)->forward($request, 'formaciones', '');
 });

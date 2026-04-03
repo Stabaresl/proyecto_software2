@@ -369,7 +369,7 @@ locust -f stress_test.py --headless --users 200 --spawn-rate 10 --run-time 3m --
 
 **Prueba con interfaz visual:**
 ```bash
-locust -f locustfile.py --host http://localhost:8000
+locust -f locust.py --host http://localhost:8000
 ```
 Luego abre `http://localhost:8089` en el navegador.
 
