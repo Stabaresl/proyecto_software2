@@ -12,10 +12,11 @@ class UsuarioEstudiante(HttpUser):
     host = "http://localhost:8000"
 
     def on_start(self):
-        self.email    = random_email()
-        self.password = "Password123*"
-        self.token    = None
-        self.user_id  = None
+        self.email               = random_email()
+        self.password            = "Password123*"
+        self.token               = None
+        self.user_id             = None
+        self.convocatoria_activa_id = None
 
         reg = self.client.post("/api/auth/register", json={
             "email":                 self.email,
@@ -33,6 +34,12 @@ class UsuarioEstudiante(HttpUser):
                 self.token   = res.json().get("token")
                 self.user_id = res.json().get("user", {}).get("id")
 
+                conv_res = self.client.get("/api/convocatorias?estado=activa", timeout=30)
+                if conv_res.status_code == 200:
+                    data = conv_res.json().get("data", [])
+                    if data:
+                        self.convocatoria_activa_id = data[0].get("id")
+
     def auth_headers(self):
         return {"Authorization": f"Bearer {self.token}"} if self.token else {}
 
@@ -42,7 +49,13 @@ class UsuarioEstudiante(HttpUser):
 
     @task(2)
     def ver_convocatoria(self):
-        self.client.get("/api/convocatorias/1", name="/api/convocatorias/[id]", timeout=30)
+        if not self.convocatoria_activa_id:
+            return
+        self.client.get(
+            f"/api/convocatorias/{self.convocatoria_activa_id}",
+            name="/api/convocatorias/[id]",
+            timeout=30,
+        )
 
     @task(2)
     def mis_postulaciones(self):
@@ -52,10 +65,10 @@ class UsuarioEstudiante(HttpUser):
 
     @task(1)
     def postularse(self):
-        if not self.token:
+        if not self.token or not self.convocatoria_activa_id:
             return
         self.client.post(
-            "/api/convocatorias/1/postular",
+            f"/api/convocatorias/{self.convocatoria_activa_id}/postular",
             name="/api/convocatorias/[id]/postular",
             headers=self.auth_headers(),
             json={"carta_presentacion": "Postulación de prueba de carga."},
@@ -96,11 +109,11 @@ class UsuarioEmpresa(HttpUser):
     host = "http://localhost:8000"
 
     def on_start(self):
-        self.email               = random_email()
-        self.password            = "Password123*"
-        self.token               = None
-        self.user_id             = None
-        self.mi_convocatoria_id  = None
+        self.email              = random_email()
+        self.password           = "Password123*"
+        self.token              = None
+        self.user_id            = None
+        self.mi_convocatoria_id = None
 
         reg = self.client.post("/api/auth/register", json={
             "email":                 self.email,
