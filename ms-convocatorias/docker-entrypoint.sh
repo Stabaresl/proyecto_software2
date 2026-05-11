@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "⏳ [ms-convocatorias] Esperando MySQL en $DB_HOST:$DB_PORT..."
+echo " [ms-convocatorias] Esperando MySQL en $DB_HOST:$DB_PORT..."
 until php -r "
 try {
     new PDO('mysql:host='.getenv('DB_HOST').';port='.getenv('DB_PORT').';dbname='.getenv('DB_DATABASE'), getenv('DB_USERNAME'), getenv('DB_PASSWORD'));
@@ -14,7 +14,7 @@ done
 echo "✅ MySQL disponible"
 
 if [ -z "$APP_KEY" ]; then
-    echo "🔑 Generando APP_KEY..."
+    echo " Generando APP_KEY..."
     php artisan key:generate --force
 fi
 
