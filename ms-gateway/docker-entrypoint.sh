@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "⏳ [ms-gateway] Esperando MySQL en $DB_HOST:$DB_PORT..."
+echo " [ms-gateway] Esperando MySQL en $DB_HOST:$DB_PORT..."
 until php -r "
 try {
     new PDO('mysql:host='.getenv('DB_HOST').';port='.getenv('DB_PORT').';dbname='.getenv('DB_DATABASE'), getenv('DB_USERNAME'), getenv('DB_PASSWORD'));
