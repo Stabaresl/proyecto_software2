@@ -1,0 +1,372 @@
+version: "3.9"
+
+# ================================================================
+# TalentBridge — Docker Compose (basado en repo real)
+#
+# Carpetas reales del repo:
+#   ms-gateway        (Laravel + tymon/jwt-auth + guzzlehttp)
+#   ms_usuarios       (Django 6 + DRF + simplejwt + psycopg2)
+#   ms-convocatorias  (Laravel + tymon/jwt-auth)
+#   ms-formacion      (Flask + flask-pymongo + marshmallow)
+#   ms-matching       (Express + Sequelize + mysql2)
+#   ms-notificaciones (Express + Mongoose + Nodemailer)
+#
+# Notas:
+#   - ms-matching usa sequelize.sync({alter:true}) → crea tablas solo
+#   - ms-notificaciones conecta Mongoose directamente desde server.js
+#   - ms-formacion arranca con run.py (app.run host=0.0.0.0)
+#   - ms_usuarios tiene guión BAJO (nombre real del directorio)
+# ================================================================
+
+services:
+
+  # ──────────────────────────────────────────────────────────────
+  # BASES DE DATOS
+  # ──────────────────────────────────────────────────────────────
+
+  mysql-gateway:
+    image: mysql:8.0
+    container_name: tb_mysql_gateway
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-talentbridge2024}
+      MYSQL_DATABASE: tb_gateway
+      MYSQL_ROOT_HOST: "%"
+    volumes:
+      - mysql_gateway_data:/var/lib/mysql
+    ports:
+      - "3310:3306"
+    networks:
+      - talentbridge-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost",
+             "-u", "root", "--password=${MYSQL_ROOT_PASSWORD:-talentbridge2024}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  mysql-convocatorias:
+    image: mysql:8.0
+    container_name: tb_mysql_convocatorias
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-talentbridge2024}
+      MYSQL_DATABASE: tb_convocatorias
+      MYSQL_ROOT_HOST: "%"
+    volumes:
+      - mysql_convocatorias_data:/var/lib/mysql
+    ports:
+      - "3311:3306"
+    networks:
+      - talentbridge-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost",
+             "-u", "root", "--password=${MYSQL_ROOT_PASSWORD:-talentbridge2024}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  mysql-matching:
+    image: mysql:8.0
+    container_name: tb_mysql_matching
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-talentbridge2024}
+      MYSQL_DATABASE: tb_matching
+      MYSQL_ROOT_HOST: "%"
+    volumes:
+      - mysql_matching_data:/var/lib/mysql
+    ports:
+      - "3312:3306"
+    networks:
+      - talentbridge-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost",
+             "-u", "root", "--password=${MYSQL_ROOT_PASSWORD:-talentbridge2024}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  postgres-usuarios:
+    image: postgres:16-alpine
+    container_name: tb_postgres_usuarios
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tb_usuarios
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-talentbridge2024}
+    volumes:
+      - postgres_usuarios_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - talentbridge-net
+    healthcheck:
+      test: ["CMD-SHELL",
+             "pg_isready -U ${POSTGRES_USER:-postgres} -d tb_usuarios"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  mongo-formacion:
+    image: mongo:7.0
+    container_name: tb_mongo_formacion
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: tb_formacion
+    volumes:
+      - mongo_formacion_data:/data/db
+    ports:
+      - "27017:27017"
+    networks:
+      - talentbridge-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  mongo-notificaciones:
+    image: mongo:7.0
+    container_name: tb_mongo_notificaciones
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: tb_notificaciones
+    volumes:
+      - mongo_notificaciones_data:/data/db
+    ports:
+      - "27018:27017"
+    networks:
+      - talentbridge-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # ──────────────────────────────────────────────────────────────
+  # MICROSERVICIOS
+  # ──────────────────────────────────────────────────────────────
+
+  ms-usuarios:
+    build:
+      context: ./ms_usuarios        # ← guión BAJO, nombre real del directorio
+      dockerfile: Dockerfile
+    container_name: tb_ms_usuarios
+    restart: unless-stopped
+    environment:
+      DEBUG: "True"
+      SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-talentbridge-usuarios-2024}
+      DB_NAME: tb_usuarios
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-talentbridge2024}
+      DB_HOST: postgres-usuarios
+      DB_PORT: "5432"
+      ALLOWED_HOSTS: "localhost,127.0.0.1,ms-usuarios,0.0.0.0"
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres-usuarios:
+        condition: service_healthy
+    networks:
+      - talentbridge-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/api/students/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  ms-convocatorias:
+    build:
+      context: ./ms-convocatorias
+      dockerfile: Dockerfile
+    container_name: tb_ms_convocatorias
+    restart: unless-stopped
+    environment:
+      APP_NAME: TalentBridge-Convocatorias
+      APP_ENV: local
+      APP_KEY: ${MS_CONVOCATORIAS_APP_KEY:-}
+      APP_DEBUG: "true"
+      APP_URL: http://ms-convocatorias:8002
+      DB_CONNECTION: mysql
+      DB_HOST: mysql-convocatorias
+      DB_PORT: "3306"
+      DB_DATABASE: tb_convocatorias
+      DB_USERNAME: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-talentbridge2024}
+      CACHE_STORE: file
+      SESSION_DRIVER: file
+      MS_GATEWAY_URL: http://ms-gateway:8000
+    ports:
+      - "8002:8002"
+    depends_on:
+      mysql-convocatorias:
+        condition: service_healthy
+    networks:
+      - talentbridge-net
+    healthcheck:
+      test: ["CMD", "php", "artisan", "migrate:status"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  ms-formacion:
+    build:
+      context: ./ms-formacion
+      dockerfile: Dockerfile
+    container_name: tb_ms_formacion
+    restart: unless-stopped
+    environment:
+      FLASK_ENV: development
+      FLASK_DEBUG: "True"
+      FLASK_PORT: "8003"
+      SECRET_KEY: ${FLASK_SECRET_KEY:-talentbridge-formacion-secret-2024}
+      # run.py lee FLASK_PORT → app.run(host='0.0.0.0', port=FLASK_PORT)
+      MONGO_URI: mongodb://mongo-formacion:27017/tb_formacion
+      MS_GATEWAY_URL: http://ms-gateway:8000
+    ports:
+      - "8003:8003"
+    depends_on:
+      mongo-formacion:
+        condition: service_healthy
+    networks:
+      - talentbridge-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/api/formaciones/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  ms-matching:
+    build:
+      context: ./ms-matching
+      dockerfile: Dockerfile
+    container_name: tb_ms_matching
+    restart: unless-stopped
+    environment:
+      PORT: "8004"
+      DB_HOST: mysql-matching
+      DB_PORT: "3306"
+      DB_NAME: tb_matching
+      DB_USER: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-talentbridge2024}
+      MS_GATEWAY_URL: http://ms-gateway:8000
+      MS_USUARIOS_URL: http://ms-usuarios:8001
+    ports:
+      - "8004:8004"
+    depends_on:
+      mysql-matching:
+        condition: service_healthy
+    networks:
+      - talentbridge-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  ms-notificaciones:
+    build:
+      context: ./ms-notificaciones
+      dockerfile: Dockerfile
+    container_name: tb_ms_notificaciones
+    restart: unless-stopped
+    environment:
+      PORT: "8005"
+      MONGO_URI: mongodb://mongo-notificaciones:27017/tb_notificaciones
+      MS_GATEWAY_URL: http://ms-gateway:8000
+      # Nodemailer — dejar vacío para modo simulado (imprime en consola)
+      # Completar si se quiere envío real de emails:
+      EMAIL_HOST: ${EMAIL_HOST:-}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_USER: ${EMAIL_USER:-}
+      EMAIL_PASS: ${EMAIL_PASS:-}
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@talentbridge.com}
+    ports:
+      - "8005:8005"
+    depends_on:
+      mongo-notificaciones:
+        condition: service_healthy
+    networks:
+      - talentbridge-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  ms-gateway:
+    build:
+      context: ./ms-gateway
+      dockerfile: Dockerfile
+    container_name: tb_ms_gateway
+    restart: unless-stopped
+    environment:
+      APP_NAME: TalentBridge-Gateway
+      APP_ENV: local
+      APP_KEY: ${MS_GATEWAY_APP_KEY:-}
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8000
+      DB_CONNECTION: mysql
+      DB_HOST: mysql-gateway
+      DB_PORT: "3306"
+      DB_DATABASE: tb_gateway
+      DB_USERNAME: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-talentbridge2024}
+      CACHE_STORE: file
+      SESSION_DRIVER: file
+      JWT_SECRET: ${MS_GATEWAY_JWT_SECRET}
+      # URLs internas — usan nombres de servicio Docker
+      MS_USUARIOS_URL: http://ms-usuarios:8001
+      MS_CONVOCATORIAS_URL: http://ms-convocatorias:8002
+      MS_FORMACION_URL: http://ms-formacion:8003
+      MS_MATCHING_URL: http://ms-matching:8004
+      MS_NOTIFICACIONES_URL: http://ms-notificaciones:8005
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql-gateway:
+        condition: service_healthy
+      ms-usuarios:
+        condition: service_healthy
+      ms-convocatorias:
+        condition: service_started
+      ms-formacion:
+        condition: service_healthy
+      ms-matching:
+        condition: service_healthy
+      ms-notificaciones:
+        condition: service_healthy
+    networks:
+      - talentbridge-net
+
+# ──────────────────────────────────────────────────────────────
+# VOLÚMENES persistentes
+# ──────────────────────────────────────────────────────────────
+
+volumes:
+  mysql_gateway_data:
+  mysql_convocatorias_data:
+  mysql_matching_data:
+  postgres_usuarios_data:
+  mongo_formacion_data:
+  mongo_notificaciones_data:
+
+# ──────────────────────────────────────────────────────────────
+# RED interna
+# ──────────────────────────────────────────────────────────────
+
+networks:
+  talentbridge-net:
+    driver: bridge
