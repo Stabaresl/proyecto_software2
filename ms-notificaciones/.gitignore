@@ -5,6 +5,7 @@ node_modules/
 .env
 .env.backup
 .env.production
+.env.*
 
 # Logs
 logs/
