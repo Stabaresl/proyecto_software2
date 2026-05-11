@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "⏳ [ms-usuarios] Esperando PostgreSQL en $DB_HOST:$DB_PORT..."
+echo " [ms-usuarios] Esperando PostgreSQL en $DB_HOST:$DB_PORT..."
 until python -c "
 import psycopg2, os, sys
 try:
